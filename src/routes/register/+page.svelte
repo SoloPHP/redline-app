@@ -4,7 +4,7 @@
     import { goto } from '$app/navigation';
 
     let name = '';
-    let email = '';
+    let login = '';
     let password = '';
     let confirmPassword = '';
     let error = '';
@@ -14,7 +14,7 @@
 		event.preventDefault();
 
         // Валидация
-        if (!name || !email || !password || !confirmPassword) {
+        if (!name || !login || !password || !confirmPassword) {
             error = 'Заполните все поля';
             return;
         }
@@ -36,7 +36,7 @@
             const response = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
                 ...fetchConfig,
-                body: JSON.stringify({ name, email, password })
+                body: JSON.stringify({ name, login, password })
             });
 
             if (response.ok) {
@@ -92,16 +92,16 @@
             </div>
 
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">
-                    Email
+                <label for="login" class="block text-sm font-medium text-gray-700">
+                    Логин
                 </label>
                 <input
-                        id="email"
-                        type="email"
-                        bind:value={email}
+                    id="login"
+                    type="text"
+                    bind:value={login}
                         required
                         class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Введите email"
+                    placeholder="Введите логин"
                 />
             </div>
 

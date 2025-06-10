@@ -3,10 +3,9 @@ import { browser } from '$app/environment';
 import { api } from '$lib/api/client';
 
 export interface User {
-	id: number;
+	id: string;
 	name: string;
-	email: string;
-	avatar?: string;
+	login: string;
 }
 
 interface AuthState {
@@ -23,8 +22,6 @@ const initialState: AuthState = {
 
 /**
  * Функция для получения сообщения об ошибке
- * @param error - ошибка, которую нужно обработать
- * @returns строка с сообщением об ошибке
  */
 function getErrorMessage(error: unknown): string {
 	if (error instanceof Error) {
@@ -58,7 +55,7 @@ function createAuth() {
 		},
 
 		// Вход в систему
-		login: async (credentials: { email: string; password: string; rememberMe?: boolean }) => {
+		login: async (credentials: { login: string; password: string }) => {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
@@ -79,7 +76,7 @@ function createAuth() {
 		},
 
 		// Регистрация
-		register: async (userData: { name: string; email: string; password: string }) => {
+		register: async (userData: { name: string; login: string; password: string }) => {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
@@ -110,7 +107,7 @@ function createAuth() {
 			}
 		},
 
-		// Установка пользователя (для обратной совместимости)
+		// Установка пользователя
 		setUser: (user: User) => {
 			set({ user, isAuthenticated: true, isLoading: false });
 		},

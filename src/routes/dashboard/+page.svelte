@@ -26,12 +26,13 @@
                     </svg>
                 </div>
                 <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-500">Email</p>
-                    <p class="text-lg font-semibold text-gray-900">{$auth.user?.email}</p>
+                    <p class="text-sm font-medium text-gray-500">Логин</p>
+                    <p class="text-lg font-semibold text-gray-900">{$auth.user?.login}</p>
                 </div>
             </div>
         </div>
 
+        <!-- Остальные карточки без изменений -->
         <div class="bg-white p-6 rounded-lg shadow">
             <div class="flex items-center">
                 <div class="flex-shrink-0">

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { auth } from '$lib/stores/auth';
+    import { auth, type User } from '$lib/stores/auth';
     import { api } from '$lib/api/client';
     import { goto } from '$app/navigation';
     import {
@@ -11,12 +11,6 @@
         Spinner,
         Helper
     } from 'flowbite-svelte';
-
-    // Define User type (alternatively, import from types.ts)
-    interface User {
-        id: string;
-        login: string;
-    }
 
     // Reactive state with $state
     let login = $state('');
@@ -52,8 +46,8 @@
 
         try {
             // Specify the User type for the api.post response
-            const user = await api.post<User>('/auth/login', { login, password });
-            auth.setUser(user); // Now TypeScript knows user is of type User
+            const user = await api.post<User>('/employee/auth/login', { login, password });
+            auth.setUser(user);
             goto('/dashboard');
         } catch (err: any) {
             // Handle APIError from APIClient
