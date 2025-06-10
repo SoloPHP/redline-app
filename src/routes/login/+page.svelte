@@ -1,6 +1,6 @@
 <script lang="ts">
     import { auth } from '$lib/stores/auth';
-    import { API_URL, fetchConfig } from '$lib/config';
+    import { api } from '$lib/api/client';
     import { goto } from '$app/navigation';
     import {
         Button,
@@ -9,35 +9,36 @@
         Label,
         Alert,
         Spinner,
-        Checkbox,
         Helper
     } from 'flowbite-svelte';
 
-    let email = '';
-    let password = '';
-    let rememberMe = false;
-    let error = '';
-    let loading = false;
-    let showPassword = false;
+    // Define User type (alternatively, import from types.ts)
+    interface User {
+        id: string;
+        login: string;
+    }
 
-    // Валидация email
-    let emailValid = true;
-    $: emailValid = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    // Reactive state with $state
+    let login = $state('');
+    let password = $state('');
+    let error = $state('');
+    let loading = $state(false);
+    let showPassword = $state(false);
 
-    // Валидация пароля
-    let passwordValid = true;
-    $: passwordValid = !password || password.length >= 3;
+    // Derived state with $derived
+    let loginValid = $derived(!login || /^[a-zA-Z0-9_-]{3,20}$/.test(login));
+    let passwordValid = $derived(!password || password.length >= 3);
 
-    async function login(event: SubmitEvent) {
+    async function loginUser(event: SubmitEvent) {
         event.preventDefault();
 
-        if (!email || !password) {
+        if (!login || !password) {
             error = 'Заполните все поля';
             return;
         }
 
-        if (!emailValid) {
-            error = 'Введите корректный email адрес';
+        if (!loginValid) {
+            error = 'Введите корректный логин (3-20 символов, буквы, цифры, _, -)';
             return;
         }
 
@@ -50,35 +51,17 @@
         error = '';
 
         try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                ...fetchConfig,
-                body: JSON.stringify({ email, password, rememberMe })
-            });
-
-            if (response.ok) {
-                const user = await response.json();
-                auth.setUser(user);
-                goto('/dashboard');
-            } else {
-                const errorText = await response.text();
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    error = errorJson.message || 'Неверный email или пароль';
-                } catch {
-                    error = errorText || 'Неверный email или пароль';
-                }
-            }
-        } catch (err) {
-            error = 'Ошибка подключения к серверу. Проверьте интернет-соединение.';
+            // Specify the User type for the api.post response
+            const user = await api.post<User>('/auth/login', { login, password });
+            auth.setUser(user); // Now TypeScript knows user is of type User
+            goto('/dashboard');
+        } catch (err: any) {
+            // Handle APIError from APIClient
+            error = err.message || 'Неверный логин или пароль';
+            // Note: The APIClient already handles 401 redirect to /login
         } finally {
             loading = false;
         }
-    }
-
-    function fillDemo() {
-        email = 'demo@example.com';
-        password = 'demo123';
     }
 
     function togglePassword() {
@@ -92,32 +75,11 @@
 
 <div class="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors">
     <div class="w-full max-w-md">
-        <!-- Логотип/Заголовок приложения -->
-        <div class="text-center mb-8">
-            <div class="mx-auto w-16 h-16 bg-blue-600 dark:bg-blue-700 rounded-full flex items-center justify-center mb-4 transition-colors">
-                <span class="text-white text-2xl font-bold">RL</span>
-            </div>
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white transition-colors">RedLine App</h1>
-        </div>
-
         <Card class="w-full shadow-lg dark:shadow-gray-800 transition-all p-6 md:p-8" size="lg">
             <!-- Заголовок формы -->
             <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Вход в аккаунт</h2>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white transition-colors">Redline Works</h1>
                 <p class="text-gray-600 dark:text-gray-400 transition-colors">Войдите в свой аккаунт для продолжения</p>
-            </div>
-
-            <!-- Демо кнопка -->
-            <div class="mb-4">
-                <Button
-                        color="light"
-                        class="w-full text-sm"
-                        size="sm"
-                        onclick={fillDemo}
-                        disabled={loading}
-                >
-                    🚀 Заполнить демо данными
-                </Button>
             </div>
 
             <!-- Алерт с ошибкой -->
@@ -128,23 +90,23 @@
             {/if}
 
             <!-- Форма -->
-            <form on:submit={login} class="space-y-6">
-                <!-- Email -->
+            <form onsubmit={loginUser} class="space-y-6">
+                <!-- Логин -->
                 <div>
-                    <Label for="email" class="mb-2 text-gray-900 dark:text-white">Email адрес</Label>
+                    <Label for="login" class="mb-2 text-gray-900 dark:text-white">Логин</Label>
                     <Input
-                            id="email"
-                            type="email"
-                            bind:value={email}
-                            placeholder="your@email.com"
+                            id="login"
+                            type="text"
+                            bind:value={login}
+                            placeholder="Введите логин"
                             required
                             disabled={loading}
-                            color={!emailValid && email ? 'red' : undefined}
+                            color={!loginValid && login ? 'red' : undefined}
                             class="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
-                    {#if !emailValid && email}
+                    {#if !loginValid && login}
                         <Helper class="mt-1" color="red">
-                            Введите корректный email адрес
+                            Введите корректный логин (3-20 символов, буквы, цифры, _, -)
                         </Helper>
                     {/if}
                 </div>
@@ -166,7 +128,7 @@
                         <button
                                 type="button"
                                 class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-gray-100 transition-colors"
-                                on:click={togglePassword}
+                                onclick={togglePassword}
                                 disabled={loading}
                         >
                             {#if showPassword}
@@ -188,22 +150,19 @@
                     {/if}
                 </div>
 
-                <!-- Запомнить меня и забыли пароль -->
-                <div class="flex items-center justify-between py-2">
-                    <Checkbox bind:checked={rememberMe} disabled={loading} class="text-gray-900 dark:text-white">
-                        Запомнить меня
-                    </Checkbox>
+                <!-- Забыли пароль -->
+                <div class="flex justify-end">
                     <a href="/forgot-password" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 hover:underline transition-colors">
                         Забыли пароль?
                     </a>
                 </div>
 
                 <!-- Кнопка входа -->
-                <div class="pt-2">
+                <div class="pt-1">
                     <Button
                             type="submit"
                             class="w-full"
-                            disabled={loading || !emailValid || !passwordValid}
+                            disabled={loading || !loginValid || !passwordValid}
                             size="lg"
                     >
                         {#if loading}
@@ -215,35 +174,6 @@
                     </Button>
                 </div>
             </form>
-
-            <!-- Разделитель -->
-            <div class="relative my-6">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
-                </div>
-                <div class="relative flex justify-center text-sm">
-                    <span class="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors">или</span>
-                </div>
-            </div>
-
-            <!-- Ссылка на регистрацию -->
-            <div class="text-center">
-                <p class="text-sm text-gray-600 dark:text-gray-400 transition-colors">
-                    Нет аккаунта?
-                    <a
-                            href="/register"
-                            class="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 hover:underline transition-colors"
-                    >
-                        Создать новый аккаунт
-                    </a>
-                </p>
-            </div>
         </Card>
-
-        <!-- Дополнительная информация -->
-        <div class="text-center mt-6 text-xs text-gray-500 dark:text-gray-400 transition-colors">
-            Нажимая "Войти", вы соглашаетесь с нашими
-            <a href="/terms" class="text-blue-600 dark:text-blue-400 hover:underline transition-colors">условиями использования</a>
-        </div>
     </div>
 </div>

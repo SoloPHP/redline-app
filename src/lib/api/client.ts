@@ -37,6 +37,7 @@ class APIClient {
 
 		const config: RequestInit = {
 			credentials: 'include', // Для отправки cookies
+			mode: 'cors', // Явно указываем CORS режим
 			headers: {
 				...this.defaultHeaders,
 				...options.headers
