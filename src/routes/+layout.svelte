@@ -19,11 +19,18 @@
         '/settings'
     ];
 
-    // Список маршрутов только для неавторизованных пользователей
+    // Список маршрутов только для неавторизованных пользователей (без навигации)
     const guestOnlyRoutes = [
         '/login',
-        '/register'
+        '/register',
+        '/forgot-password'
     ];
+
+    // Реактивная переменная для определения нужно ли показывать навигацию
+    let showNavigation = $derived.by(() => {
+        const currentPath = page.url.pathname;
+        return !guestOnlyRoutes.some(route => currentPath.startsWith(route));
+    });
 
     // Проверяем авторизацию при загрузке
     onMount(async () => {
@@ -46,7 +53,8 @@
                 currentPath.startsWith(route)
             );
 
-            if (isProtectedRoute) {
+            // Также перенаправляем с главной страницы
+            if (isProtectedRoute || currentPath === '/') {
                 goto('/login');
             }
         }
@@ -56,7 +64,8 @@
                 currentPath.startsWith(route)
             );
 
-            if (isGuestOnlyRoute) {
+            // Также перенаправляем с главной страницы
+            if (isGuestOnlyRoute || currentPath === '/') {
                 goto('/dashboard');
             }
         }
@@ -89,48 +98,55 @@
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-    <!-- Навигация -->
-    <nav class="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="/" class="text-xl font-bold text-gray-900 dark:text-white transition-colors">
-                        RedLine App
-                    </a>
-                </div>
+    {#if showNavigation}
+        <!-- Навигация для авторизованных пользователей -->
+        <nav class="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700 transition-colors">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <a href="/dashboard" class="text-xl font-bold text-gray-900 dark:text-white transition-colors">
+                            RedLine App
+                        </a>
+                    </div>
 
-                <div class="flex items-center space-x-4">
-                    <!-- Переключатель темы -->
-                    <DarkMode />
+                    <div class="flex items-center space-x-4">
+                        <!-- Переключатель темы -->
+                        <DarkMode />
 
-                    {#if $auth.isAuthenticated}
-						<span class="text-gray-700 dark:text-gray-300 transition-colors">
-							Привет, {$auth.user?.name}!
-						</span>
-                        <a href="/dashboard" class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                            Dashboard
-                        </a>
-                        <a href="/posts" class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                            Посты
-                        </a>
-                        <button
-                                onclick={logout}
-                                class="bg-red-600 dark:bg-red-700 text-white px-4 py-2 rounded hover:bg-red-700 dark:hover:bg-red-800 transition-colors"
-                        >
-                            Выйти
-                        </button>
-                    {:else if !$auth.isLoading}
-                        <a href="/login" class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
-                            Войти
-                        </a>
-                        <a href="/register" class="bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors">
-                            Регистрация
-                        </a>
-                    {/if}
+                        {#if $auth.isAuthenticated}
+                            <span class="text-gray-700 dark:text-gray-300 transition-colors">
+                                Привет, {$auth.user?.name}!
+                            </span>
+                            <a href="/dashboard" class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                                Dashboard
+                            </a>
+                            <a href="/posts" class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                                Посты
+                            </a>
+                            <button
+                                    onclick={logout}
+                                    class="bg-red-600 dark:bg-red-700 text-white px-4 py-2 rounded hover:bg-red-700 dark:hover:bg-red-800 transition-colors"
+                            >
+                                Выйти
+                            </button>
+                        {:else if !$auth.isLoading}
+                            <a href="/login" class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                                Войти
+                            </a>
+                            <a href="/register" class="bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors">
+                                Регистрация
+                            </a>
+                        {/if}
+                    </div>
                 </div>
             </div>
+        </nav>
+    {:else}
+        <!-- Минимальная навигация для страниц авторизации -->
+        <div class="absolute top-4 right-4 z-10">
+            <DarkMode />
         </div>
-    </nav>
+    {/if}
 
     <!-- Основное содержимое -->
     <main>

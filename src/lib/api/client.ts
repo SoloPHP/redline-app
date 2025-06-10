@@ -1,9 +1,12 @@
-// src/lib/api/client.ts
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 
 // Базовая конфигурация
 const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+// Типы для API
+type RequestData = Record<string, unknown> | FormData | string | null | undefined;
+type QueryParams = Record<string, string | number | boolean | null | undefined>;
 
 // Интерфейс для ошибок API
 interface APIError {
@@ -52,7 +55,7 @@ class APIClient {
 			// Проверяем есть ли контент для парсинга
 			const contentType = response.headers.get('content-type');
 			if (contentType && contentType.includes('application/json')) {
-				return await response.json();
+				return await response.json() as T;
 			}
 
 			return response.text() as T;
@@ -67,7 +70,7 @@ class APIClient {
 		let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
 		try {
-			const errorData = await response.json();
+			const errorData = await response.json() as { message?: string; error?: string };
 			errorMessage = errorData.message || errorData.error || errorMessage;
 		} catch {
 			// Если не JSON, используем текст
@@ -92,7 +95,7 @@ class APIClient {
 	}
 
 	// GET запрос
-	async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+	async get<T>(endpoint: string, params?: QueryParams): Promise<T> {
 		let url = endpoint;
 
 		if (params) {
@@ -109,7 +112,7 @@ class APIClient {
 	}
 
 	// POST запрос
-	async post<T>(endpoint: string, data?: any): Promise<T> {
+	async post<T>(endpoint: string, data?: RequestData): Promise<T> {
 		return this.request<T>(endpoint, {
 			method: 'POST',
 			body: data ? JSON.stringify(data) : undefined
@@ -117,7 +120,7 @@ class APIClient {
 	}
 
 	// PUT запрос
-	async put<T>(endpoint: string, data?: any): Promise<T> {
+	async put<T>(endpoint: string, data?: RequestData): Promise<T> {
 		return this.request<T>(endpoint, {
 			method: 'PUT',
 			body: data ? JSON.stringify(data) : undefined
@@ -125,7 +128,7 @@ class APIClient {
 	}
 
 	// PATCH запрос
-	async patch<T>(endpoint: string, data?: any): Promise<T> {
+	async patch<T>(endpoint: string, data?: RequestData): Promise<T> {
 		return this.request<T>(endpoint, {
 			method: 'PATCH',
 			body: data ? JSON.stringify(data) : undefined
