@@ -1,21 +1,37 @@
+// src/lib/api/client.ts (финальная версия с правильной типизацией)
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 
-// Базовая конфигурация
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Типы для API
-type RequestData = Record<string, unknown> | FormData | string | null | undefined;
 type QueryParams = Record<string, string | number | boolean | null | undefined>;
 
-// Интерфейс для ошибок API
 interface APIError {
 	message: string;
 	status: number;
 	code?: string;
 }
 
-// Класс для работы с API
+// Переменные для управления очередью запросов
+let isRefreshing = false;
+let failedQueue: Array<{
+	resolve: (value: unknown) => void;
+	reject: (error: unknown) => void;
+}> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+	failedQueue.forEach(({ resolve, reject }) => {
+		if (error) {
+			reject(error);
+		} else {
+			resolve(token);
+		}
+	});
+	failedQueue = [];
+};
+
+// Единый универсальный API клиент
 class APIClient {
 	private baseURL: string;
 	private defaultHeaders: Record<string, string>;
@@ -28,42 +44,94 @@ class APIClient {
 		};
 	}
 
-	// Приватный метод для выполнения запросов
+	// Основной метод для выполнения запросов
 	private async request<T>(
 		endpoint: string,
-		options: RequestInit = {}
+		options: RequestInit = {},
+		withAuth: boolean = false // Флаг для включения автоматического refresh
 	): Promise<T> {
-		const url = `${this.baseURL}${endpoint}`;
+		const makeRequest = async (): Promise<Response> => {
+			const url = `${this.baseURL}${endpoint}`;
 
-		const config: RequestInit = {
-			credentials: 'include', // Для отправки cookies
-			mode: 'cors', // Явно указываем CORS режим
-			headers: {
-				...this.defaultHeaders,
-				...options.headers
-			},
-			...options
+			const config: RequestInit = {
+				credentials: 'include',
+				mode: 'cors',
+				headers: {
+					...this.defaultHeaders,
+					...options.headers
+				},
+				...options
+			};
+
+			return fetch(url, config);
 		};
 
-		try {
-			const response = await fetch(url, config);
+		let response = await makeRequest();
 
-			// Проверяем статус ответа
-			if (!response.ok) {
-				await this.handleErrorResponse(response);
+		// Автоматический refresh только если включен withAuth и получен 401
+		if (withAuth && response.status === 401 && !endpoint.includes('/refresh') && browser) {
+			if (isRefreshing) {
+				// Добавляем запрос в очередь
+				return new Promise<T>((resolve, reject) => {
+					failedQueue.push({
+						resolve: (value: unknown) => resolve(value as T),
+						reject
+					});
+				}).then(() => {
+					return makeRequest();
+				}).then(async (retryResponse) => {
+					return this.handleResponse<T>(retryResponse);
+				}).catch(err => {
+					return Promise.reject(err);
+				});
 			}
 
-			// Проверяем есть ли контент для парсинга
-			const contentType = response.headers.get('content-type');
-			if (contentType && contentType.includes('application/json')) {
-				return await response.json() as T;
-			}
+			isRefreshing = true;
 
-			return response.text() as T;
-		} catch (error) {
-			console.error('API Request failed:', error);
-			throw error;
+			try {
+				const refreshResponse = await fetch(`${this.baseURL}/auth/refresh`, {
+					method: 'POST',
+					credentials: 'include'
+				});
+
+				if (refreshResponse.ok) {
+					processQueue(null, 'success');
+					// Повторяем оригинальный запрос
+					response = await makeRequest();
+				} else {
+					processQueue(new Error('Token refresh failed'), null);
+					// Перенаправляем на логин
+					if (browser) {
+						goto('/login');
+					}
+					throw new Error('Session expired');
+				}
+			} catch (error) {
+				processQueue(error as Error, null);
+				if (browser) {
+					goto('/login');
+				}
+				throw error;
+			} finally {
+				isRefreshing = false;
+			}
 		}
+
+		return this.handleResponse<T>(response);
+	}
+
+	// Обработка ответа
+	private async handleResponse<T>(response: Response): Promise<T> {
+		if (!response.ok) {
+			await this.handleErrorResponse(response);
+		}
+
+		const contentType = response.headers.get('content-type');
+		if (contentType && contentType.includes('application/json')) {
+			return await response.json() as T;
+		}
+
+		return response.text() as T;
 	}
 
 	// Обработка ошибок
@@ -74,7 +142,6 @@ class APIClient {
 			const errorData = await response.json() as { message?: string; error?: string };
 			errorMessage = errorData.message || errorData.error || errorMessage;
 		} catch {
-			// Если не JSON, используем текст
 			try {
 				errorMessage = await response.text() || errorMessage;
 			} catch {
@@ -82,7 +149,7 @@ class APIClient {
 			}
 		}
 
-		// Автоматический редирект на логин при 401
+		// Автоматический редирект на логин при 401 (только для неавторизованных запросов)
 		if (response.status === 401 && browser) {
 			goto('/login');
 		}
@@ -95,7 +162,7 @@ class APIClient {
 		throw error;
 	}
 
-	// GET запрос
+	// Обычные запросы (публичные, авторизация, регистрация)
 	async get<T>(endpoint: string, params?: QueryParams): Promise<T> {
 		let url = endpoint;
 
@@ -109,53 +176,92 @@ class APIClient {
 			url += `?${searchParams.toString()}`;
 		}
 
-		return this.request<T>(url, { method: 'GET' });
+		return this.request<T>(url, { method: 'GET' }, false);
 	}
 
-	// POST запрос
-	async post<T>(endpoint: string, data?: RequestData): Promise<T> {
-		return this.request<T>(endpoint, {
-			method: 'POST',
-			body: data ? JSON.stringify(data) : undefined
-		});
-	}
-
-	// PUT запрос
-	async put<T>(endpoint: string, data?: RequestData): Promise<T> {
-		return this.request<T>(endpoint, {
-			method: 'PUT',
-			body: data ? JSON.stringify(data) : undefined
-		});
-	}
-
-	// PATCH запрос
-	async patch<T>(endpoint: string, data?: RequestData): Promise<T> {
-		return this.request<T>(endpoint, {
-			method: 'PATCH',
-			body: data ? JSON.stringify(data) : undefined
-		});
-	}
-
-	// DELETE запрос
-	async delete<T>(endpoint: string): Promise<T> {
-		return this.request<T>(endpoint, { method: 'DELETE' });
-	}
-
-	// Загрузка файлов
-	async upload<T>(endpoint: string, formData: FormData): Promise<T> {
-		// Для FormData не устанавливаем Content-Type
-		const headers = { ...this.defaultHeaders };
-		delete headers['Content-Type'];
+	async post<T, D = unknown>(endpoint: string, data?: D): Promise<T> {
+		const body = data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined);
+		const headers = data instanceof FormData ? {} : this.defaultHeaders;
 
 		return this.request<T>(endpoint, {
 			method: 'POST',
 			headers,
+			body
+		}, false);
+	}
+
+	async put<T, D = unknown>(endpoint: string, data?: D): Promise<T> {
+		return this.request<T>(endpoint, {
+			method: 'PUT',
+			body: data ? JSON.stringify(data) : undefined
+		}, false);
+	}
+
+	async patch<T, D = unknown>(endpoint: string, data?: D): Promise<T> {
+		return this.request<T>(endpoint, {
+			method: 'PATCH',
+			body: data ? JSON.stringify(data) : undefined
+		}, false);
+	}
+
+	async delete<T>(endpoint: string): Promise<T> {
+		return this.request<T>(endpoint, { method: 'DELETE' }, false);
+	}
+
+	async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+		return this.request<T>(endpoint, {
+			method: 'POST',
+			headers: {},
 			body: formData
-		});
+		}, false);
+	}
+
+	// Универсальный метод для авторизованных запросов с auto-refresh
+	async auth<T>(endpoint: string, options: {
+		method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+		body?: unknown;
+		params?: QueryParams;
+	} = {}): Promise<T> {
+		const { method = 'GET', body, params } = options;
+
+		let url = endpoint;
+
+		// Обработка параметров для GET запросов
+		if (method === 'GET' && params) {
+			const searchParams = new URLSearchParams();
+			Object.entries(params).forEach(([key, value]) => {
+				if (value !== undefined && value !== null) {
+					searchParams.append(key, String(value));
+				}
+			});
+			url += `?${searchParams.toString()}`;
+		}
+
+		// Формируем опции запроса в зависимости от типа данных
+		let requestOptions: RequestInit;
+
+		if (body && method !== 'GET') {
+			if (body instanceof FormData) {
+				requestOptions = {
+					method,
+					body,
+					headers: {} // Для FormData не устанавливаем Content-Type
+				};
+			} else {
+				requestOptions = {
+					method,
+					body: JSON.stringify(body),
+					headers: this.defaultHeaders
+				};
+			}
+		} else {
+			requestOptions = { method };
+		}
+
+		return this.request<T>(url, requestOptions, true); // withAuth = true
 	}
 }
 
 // Создаем и экспортируем экземпляр клиента
 export const api = new APIClient();
-
 export default api;

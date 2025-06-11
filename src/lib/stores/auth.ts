@@ -14,21 +14,40 @@ interface AuthState {
 	isLoading: boolean;
 }
 
+interface LoginCredentials {
+	login: string;
+	password: string;
+}
+
+interface RegisterData {
+	name: string;
+	login: string;
+	password: string;
+}
+
+interface AuthResult {
+	success: boolean;
+	error?: string;
+}
+
+interface APIAuthOptions {
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+	body?: unknown;
+	params?: Record<string, string | number | boolean | null | undefined>;
+}
+
 const initialState: AuthState = {
 	user: null,
 	isAuthenticated: false,
 	isLoading: false
 };
 
-/**
- * Функция для получения сообщения об ошибке
- */
 function getErrorMessage(error: unknown): string {
 	if (error instanceof Error) {
 		return error.message;
 	}
 	if (typeof error === 'object' && error !== null && 'message' in error) {
-		return String(error.message);
+		return String((error as { message: unknown }).message);
 	}
 	return 'Произошла неизвестная ошибка';
 }
@@ -40,12 +59,13 @@ function createAuth() {
 		subscribe,
 
 		// Проверка авторизации при загрузке приложения
-		checkAuth: async () => {
+		checkAuth: async (): Promise<void> => {
 			if (!browser) return;
 
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
+				// Используем обычный запрос без auto-refresh для проверки
 				const user = await api.get<User>('/auth/me');
 				set({ user, isAuthenticated: true, isLoading: false });
 			} catch (error) {
@@ -55,11 +75,11 @@ function createAuth() {
 		},
 
 		// Вход в систему
-		login: async (credentials: { login: string; password: string }) => {
+		login: async (credentials: LoginCredentials): Promise<AuthResult> => {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
-				const response = await api.post<{ user: User }>('/auth/login', credentials);
+				const response = await api.post<{ user: User }, LoginCredentials>('/auth/login', credentials);
 				set({
 					user: response.user,
 					isAuthenticated: true,
@@ -76,11 +96,11 @@ function createAuth() {
 		},
 
 		// Регистрация
-		register: async (userData: { name: string; login: string; password: string }) => {
+		register: async (userData: RegisterData): Promise<AuthResult> => {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
-				const response = await api.post<{ user: User }>('/auth/register', userData);
+				const response = await api.post<{ user: User }, RegisterData>('/auth/register', userData);
 				set({
 					user: response.user,
 					isAuthenticated: true,
@@ -97,7 +117,7 @@ function createAuth() {
 		},
 
 		// Выход из системы
-		logout: async () => {
+		logout: async (): Promise<void> => {
 			try {
 				await api.post('/auth/logout');
 			} catch (error) {
@@ -107,13 +127,18 @@ function createAuth() {
 			}
 		},
 
+		// Метод для выполнения защищенных запросов с auto-refresh
+		apiCall: async <T>(endpoint: string, options: APIAuthOptions = {}): Promise<T> => {
+			return api.auth<T>(endpoint, options);
+		},
+
 		// Установка пользователя
-		setUser: (user: User) => {
+		setUser: (user: User): void => {
 			set({ user, isAuthenticated: true, isLoading: false });
 		},
 
 		// Установка загрузки
-		setLoading: (isLoading: boolean) => {
+		setLoading: (isLoading: boolean): void => {
 			update((state) => ({ ...state, isLoading }));
 		}
 	};

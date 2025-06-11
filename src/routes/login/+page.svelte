@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { auth, type User } from '$lib/stores/auth';
-    import { api } from '$lib/api/client';
+	import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
     import {
         Button,
@@ -12,47 +11,45 @@
         Helper
     } from 'flowbite-svelte';
 
-    // Reactive state with $state
     let login = $state('');
     let password = $state('');
-    let error = $state('');
+	let error = $state('');
     let loading = $state(false);
     let showPassword = $state(false);
 
-    // Derived state with $derived
     let loginValid = $derived(!login || /^[a-zA-Z0-9_-]{3,20}$/.test(login));
-    let passwordValid = $derived(!password || password.length >= 3);
+	let passwordValid = $derived(!password || password.length >= 3);
 
     async function loginUser(event: SubmitEvent) {
         event.preventDefault();
 
         if (!login || !password) {
-            error = 'Заполните все поля';
+			error = 'Заполните все поля';
             return;
         }
 
         if (!loginValid) {
-            error = 'Введите корректный логин (3-20 символов, буквы, цифры, _, -)';
+			error = 'Введите корректный логин (3-20 символов, буквы, цифры, _, -)';
             return;
         }
 
         if (!passwordValid) {
-            error = 'Пароль должен содержать минимум 3 символа';
+			error = 'Пароль должен содержать минимум 3 символа';
             return;
         }
 
         loading = true;
-        error = '';
+		error = '';
 
         try {
-            // Specify the User type for the api.post response
-            const user = await api.post<User>('/employee/auth/login', { login, password });
-            auth.setUser(user);
-            goto('/dashboard');
+            const result = await auth.login({ login, password });
+            if (result.success) {
+                goto('/dashboard');
+            } else {
+				error = result.error || 'Ошибка входа';
+            }
         } catch (err: any) {
-            // Handle APIError from APIClient
-            error = err.message || 'Неверный логин или пароль';
-            // Note: The APIClient already handles 401 redirect to /login
+			error = err.message || 'Неверный логин или пароль';
         } finally {
             loading = false;
         }
@@ -70,22 +67,19 @@
 <div class="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors">
     <div class="w-full max-w-md">
         <Card class="w-full shadow-lg dark:shadow-gray-800 transition-all p-6 md:p-8" size="lg">
-            <!-- Заголовок формы -->
             <div class="text-center mb-6">
                 <h1 class="text-3xl font-bold text-gray-900 dark:text-white transition-colors">Redline Works</h1>
                 <p class="text-gray-600 dark:text-gray-400 transition-colors">Войдите в свой аккаунт для продолжения</p>
             </div>
 
-            <!-- Алерт с ошибкой -->
-            {#if error}
+			<!-- Алерт с ошибкой -->
+			{#if error}
                 <Alert color="red" class="mb-4">
-                    <span class="font-medium">Ошибка!</span> {error}
+					<span class="font-medium">Ошибка!</span> {error}
                 </Alert>
             {/if}
 
-            <!-- Форма -->
             <form onsubmit={loginUser} class="space-y-6">
-                <!-- Логин -->
                 <div>
                     <Label for="login" class="mb-2 text-gray-900 dark:text-white">Логин</Label>
                     <Input
@@ -95,7 +89,7 @@
                             placeholder="Введите логин"
                             required
                             disabled={loading}
-                            color={!loginValid && login ? 'red' : undefined}
+						color={!loginValid && login ? 'red' : undefined}
                             class="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                     {#if !loginValid && login}
@@ -105,7 +99,6 @@
                     {/if}
                 </div>
 
-                <!-- Пароль -->
                 <div>
                     <Label for="password" class="mb-2 text-gray-900 dark:text-white">Пароль</Label>
                     <div class="relative">
@@ -116,7 +109,7 @@
                                 placeholder="Введите пароль"
                                 required
                                 disabled={loading}
-                                color={!passwordValid && password ? 'red' : undefined}
+							color={!passwordValid && password ? 'red' : undefined}
                                 class="dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10"
                         />
                         <button
@@ -144,14 +137,12 @@
                     {/if}
                 </div>
 
-                <!-- Забыли пароль -->
                 <div class="flex justify-end">
                     <a href="/forgot-password" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 hover:underline transition-colors">
                         Забыли пароль?
                     </a>
                 </div>
 
-                <!-- Кнопка входа -->
                 <div class="pt-1">
                     <Button
                             type="submit"
@@ -168,6 +159,16 @@
                     </Button>
                 </div>
             </form>
+
+			<!-- Ссылка на регистрацию -->
+			<div class="text-center mt-6">
+				<p class="text-sm text-gray-600 dark:text-gray-400">
+					Нет аккаунта?
+					<a href="/register" class="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 hover:underline transition-colors">
+						Зарегистрироваться
+					</a>
+				</p>
+			</div>
         </Card>
     </div>
 </div>

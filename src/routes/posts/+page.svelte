@@ -1,10 +1,10 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { API_URL, fetchConfig } from '$lib/config';
+    import { auth } from '$lib/stores/auth';
 
-    let posts = [];
-    let loading = true;
-    let error = '';
+    let posts = $state([]);
+    let loading = $state(true);
+    let error = $state('');
 
     onMount(async () => {
         await loadPosts();
@@ -15,36 +15,23 @@
         error = '';
 
         try {
-            const response = await fetch(`${API_URL}/posts`, fetchConfig);
-
-            if (response.ok) {
-                posts = await response.json();
-            } else {
-                error = 'Ошибка загрузки постов';
-            }
-        } catch (err) {
-            error = 'Ошибка сети';
+            // Используем новый API с автоматическим refresh токенов
+            posts = await auth.apiCall('/posts');
+        } catch (err: any) {
+            error = err.message || 'Ошибка загрузки постов';
         } finally {
             loading = false;
         }
     }
 
-    async function deletePost(id) {
+    async function deletePost(id: string) {
         if (!confirm('Удалить пост?')) return;
 
         try {
-            const response = await fetch(`${API_URL}/posts/${id}`, {
-                method: 'DELETE',
-                ...fetchConfig
-            });
-
-            if (response.ok) {
-                posts = posts.filter(post => post.id !== id);
-            } else {
-                alert('Ошибка удаления');
-            }
-        } catch (error) {
-            alert('Ошибка сети');
+            await auth.apiCall(`/posts/${id}`, { method: 'DELETE' });
+            posts = posts.filter(post => post.id !== id);
+        } catch (error: any) {
+            alert(error.message || 'Ошибка удаления');
         }
     }
 </script>
@@ -55,17 +42,17 @@
 
 <div class="max-w-7xl mx-auto py-6 px-4">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Посты</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Посты</h1>
         <a
                 href="/posts/create"
-                class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                class="bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors"
         >
             Создать пост
         </a>
     </div>
 
     {#if error}
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+        <div class="bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
             {error}
             <button onclick={loadPosts} class="ml-2 underline">Попробовать снова</button>
         </div>
@@ -73,15 +60,15 @@
 
     {#if loading}
         <div class="text-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p class="text-gray-600">Загрузка постов...</p>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
+            <p class="text-gray-600 dark:text-gray-400">Загрузка постов...</p>
         </div>
     {:else if posts.length === 0}
         <div class="text-center py-8">
-            <p class="text-gray-600 mb-4">Постов пока нет</p>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Постов пока нет</p>
             <a
                     href="/posts/create"
-                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    class="bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors"
             >
                 Создать первый пост
             </a>
@@ -89,16 +76,16 @@
     {:else}
         <div class="space-y-4">
             {#each posts as post (post.id)}
-                <div class="bg-white border rounded-lg p-6 shadow-sm">
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors">
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
-                            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                                 {post.title}
                             </h2>
                             {#if post.content}
-                                <p class="text-gray-600 line-clamp-3">{post.content}</p>
+                                <p class="text-gray-600 dark:text-gray-400 line-clamp-3">{post.content}</p>
                             {/if}
-                            <div class="mt-4 text-sm text-gray-500">
+                            <div class="mt-4 text-sm text-gray-500 dark:text-gray-400">
                                 {#if post.author}
                                     <span>Автор: {post.author.name}</span> •
                                 {/if}
@@ -108,13 +95,13 @@
                         <div class="ml-4 flex space-x-2">
                             <a
                                     href="/posts/{post.id}/edit"
-                                    class="text-blue-600 hover:text-blue-800 text-sm"
+                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm transition-colors"
                             >
                                 Редактировать
                             </a>
                             <button
                                     onclick={() => deletePost(post.id)}
-                                    class="text-red-600 hover:text-red-800 text-sm"
+                                    class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm transition-colors"
                             >
                                 Удалить
                             </button>
