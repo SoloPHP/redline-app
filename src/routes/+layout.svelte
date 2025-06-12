@@ -5,28 +5,17 @@
     import { page } from '$app/state';
     import { auth } from '$lib/stores/auth';
     import { theme } from '$lib/stores/theme';
-    import { API_URL, fetchConfig } from '$lib/config';
     import { DarkMode } from 'flowbite-svelte';
 
     let { children } = $props();
 
     // Список защищенных маршрутов
-    const protectedRoutes = [
-        '/dashboard',
-        '/posts',
-        '/upload',
-        '/profile',
-        '/settings'
-    ];
+    const protectedRoutes = ['/dashboard', '/posts', '/upload', '/profile', '/settings'];
 
-    // Список маршрутов только для неавторизованных пользователей (без навигации)
-    const guestOnlyRoutes = [
-        '/login',
-        '/register',
-        '/forgot-password'
-    ];
+    // Список маршрутов только для неавторизованных пользователей
+    const guestOnlyRoutes = ['/login', '/register', '/forgot-password'];
 
-    // Реактивная переменная для определения нужно ли показывать навигацию
+    // Показывать ли навигацию
     let showNavigation = $derived.by(() => {
         const currentPath = page.url.pathname;
         return !guestOnlyRoutes.some(route => currentPath.startsWith(route));
@@ -35,8 +24,6 @@
     // Проверяем авторизацию при загрузке
     onMount(async () => {
         auth.checkAuth();
-
-        // Инициализируем тему
         theme.init();
 
         // Инициализируем Flowbite
@@ -44,27 +31,25 @@
         flowbite.initFlowbite();
     });
 
-    // Реактивная проверка маршрутов
+    // Защита маршрутов
     $effect(() => {
         const currentPath = page.url.pathname;
 
         if (!$auth.isAuthenticated && !$auth.isLoading) {
-            const isProtectedRoute = protectedRoutes.some(route =>
-                currentPath.startsWith(route)
-            );
+        const isProtectedRoute = protectedRoutes.some(route =>
+            currentPath.startsWith(route)
+        );
 
-            // Также перенаправляем с главной страницы
             if (isProtectedRoute || currentPath === '/') {
                 goto('/login');
             }
         }
 
         if ($auth.isAuthenticated && !$auth.isLoading) {
-            const isGuestOnlyRoute = guestOnlyRoutes.some(route =>
-                currentPath.startsWith(route)
-            );
+        const isGuestOnlyRoute = guestOnlyRoutes.some(route =>
+            currentPath.startsWith(route)
+        );
 
-            // Также перенаправляем с главной страницы
             if (isGuestOnlyRoute || currentPath === '/') {
                 goto('/dashboard');
             }
@@ -73,7 +58,6 @@
 
     // Реинициализация Flowbite при смене страницы
     $effect(() => {
-        // Реактивно отслеживаем изменение маршрута
         void page.url.pathname;
 
         setTimeout(async () => {
@@ -84,22 +68,14 @@
 
     // Выход из системы
     async function logout() {
-        try {
-            await fetch(`${API_URL}/auth/logout`, {
-                method: 'POST',
-                ...fetchConfig
-            });
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            auth.logout();
-        }
+        await auth.logout();
+        goto('/login');
     }
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
     {#if showNavigation}
-        <!-- Навигация для авторизованных пользователей -->
+        <!-- Навигация -->
         <nav class="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700 transition-colors">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between h-16">
@@ -110,7 +86,6 @@
                     </div>
 
                     <div class="flex items-center space-x-4">
-                        <!-- Переключатель темы -->
                         <DarkMode />
 
                         {#if $auth.isAuthenticated}
@@ -142,7 +117,7 @@
             </div>
         </nav>
     {:else}
-        <!-- Минимальная навигация для страниц авторизации -->
+        <!-- Переключатель темы для страниц авторизации -->
         <div class="absolute top-4 right-4 z-10">
             <DarkMode />
         </div>

@@ -1,11 +1,16 @@
+// src/lib/stores/auth.ts - Обновлено под структуру API
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { api } from '$lib/api/client';
 
 export interface User {
-	id: string;
+	id: number;
 	name: string;
+	phone: string;
 	login: string;
+	pin_code?: string;
+	created_at: string;
+	notify: number;
 }
 
 interface AuthState {
@@ -23,6 +28,7 @@ interface RegisterData {
 	name: string;
 	login: string;
 	password: string;
+	phone?: string;
 }
 
 interface AuthResult {
@@ -65,9 +71,13 @@ function createAuth() {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
-				// Используем обычный запрос без auto-refresh для проверки
+				// API клиент уже извлекает data, поэтому получаем сразу User
 				const user = await api.get<User>('/auth/me');
-				set({ user, isAuthenticated: true, isLoading: false });
+				set({
+					user,
+					isAuthenticated: true,
+					isLoading: false
+				});
 			} catch (error) {
 				console.error('Auth check failed:', error);
 				set(initialState);
@@ -79,9 +89,11 @@ function createAuth() {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
-				const response = await api.post<{ user: User }, LoginCredentials>('/auth/login', credentials);
+				// API клиент уже извлекает data, поэтому получаем сразу User
+				const user = await api.post<User, LoginCredentials>('/auth/login', credentials);
+
 				set({
-					user: response.user,
+					user,
 					isAuthenticated: true,
 					isLoading: false
 				});
@@ -100,9 +112,11 @@ function createAuth() {
 			update((state) => ({ ...state, isLoading: true }));
 
 			try {
-				const response = await api.post<{ user: User }, RegisterData>('/auth/register', userData);
+				// API клиент уже извлекает data, поэтому получаем сразу User
+				const user = await api.post<User, RegisterData>('/auth/register', userData);
+
 				set({
-					user: response.user,
+					user,
 					isAuthenticated: true,
 					isLoading: false
 				});

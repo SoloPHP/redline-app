@@ -49,6 +49,7 @@
 				error = result.error || 'Ошибка входа';
             }
         } catch (err: any) {
+            console.error('Login error:', err);
 			error = err.message || 'Неверный логин или пароль';
         } finally {
             loading = false;

@@ -7,6 +7,13 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 // Типы для API
 type QueryParams = Record<string, string | number | boolean | null | undefined>;
 
+// Структура ответа вашего API
+interface APIResponse<T = any> {
+	success: boolean;
+	data?: T;
+	message?: string;
+}
+
 interface APIError {
 	message: string;
 	status: number;
@@ -31,7 +38,6 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 	failedQueue = [];
 };
 
-// Единый универсальный API клиент
 class APIClient {
 	private baseURL: string;
 	private defaultHeaders: Record<string, string>;
@@ -120,7 +126,7 @@ class APIClient {
 		return this.handleResponse<T>(response);
 	}
 
-	// Обработка ответа
+	// Обработка ответа с учетом структуры API
 	private async handleResponse<T>(response: Response): Promise<T> {
 		if (!response.ok) {
 			await this.handleErrorResponse(response);
@@ -128,7 +134,15 @@ class APIClient {
 
 		const contentType = response.headers.get('content-type');
 		if (contentType && contentType.includes('application/json')) {
-			return await response.json() as T;
+			const jsonResponse = await response.json() as APIResponse<T>;
+
+			// Проверяем структуру ответа
+			if (jsonResponse.success === false) {
+				throw new Error(jsonResponse.message || 'API returned success: false');
+			}
+
+			// Если есть data, возвращаем её, иначе весь ответ
+			return (jsonResponse.data !== undefined ? jsonResponse.data : jsonResponse) as T;
 		}
 
 		return response.text() as T;
@@ -139,8 +153,8 @@ class APIClient {
 		let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
 		try {
-			const errorData = await response.json() as { message?: string; error?: string };
-			errorMessage = errorData.message || errorData.error || errorMessage;
+			const errorData = await response.json() as APIResponse;
+			errorMessage = errorData.message || errorMessage;
 		} catch {
 			try {
 				errorMessage = await response.text() || errorMessage;
@@ -149,7 +163,7 @@ class APIClient {
 			}
 		}
 
-		// Автоматический редирект на логин при 401 (только для неавторизованных запросов)
+		// Автоматический редирект на логин при 401
 		if (response.status === 401 && browser) {
 			goto('/login');
 		}
