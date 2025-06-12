@@ -2,16 +2,7 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { api } from '$lib/api/client';
-
-export interface User {
-	id: number;
-	name: string;
-	phone: string;
-	login: string;
-	pin_code?: string;
-	created_at: string;
-	notify: number;
-}
+import type { User, LoginCredentials, RegisterData, ApiError } from '$lib/types/api';
 
 interface AuthState {
 	user: User | null;
@@ -19,21 +10,10 @@ interface AuthState {
 	isLoading: boolean;
 }
 
-interface LoginCredentials {
-	login: string;
-	password: string;
-}
-
-interface RegisterData {
-	name: string;
-	login: string;
-	password: string;
-	phone?: string;
-}
-
 interface AuthResult {
 	success: boolean;
 	error?: string;
+	validationErrors?: Record<string, string>;
 }
 
 interface APIAuthOptions {
@@ -48,14 +28,32 @@ const initialState: AuthState = {
 	isLoading: false
 };
 
-function getErrorMessage(error: unknown): string {
-	if (error instanceof Error) {
-		return error.message;
+function processAuthError(error: unknown): { error: string; validationErrors?: Record<string, string> } {
+	let errorMessage = 'Произошла неизвестная ошибка';
+	let validationErrors: Record<string, string> | undefined;
+
+	if (error && typeof error === 'object') {
+		const apiError = error as ApiError;
+
+		// Приоритет сообщений: message > errors > общее сообщение
+		errorMessage = apiError.message || apiError.errors || errorMessage;
+
+		// Обработка ошибок валидации
+		if (apiError.validationErrors) {
+			validationErrors = {};
+			for (const [key, value] of Object.entries(apiError.validationErrors)) {
+				if (Array.isArray(value)) {
+					validationErrors[key] = value.join(', ');
+				} else if (typeof value === 'string') {
+					validationErrors[key] = value;
+				}
 	}
-	if (typeof error === 'object' && error !== null && 'message' in error) {
-		return String((error as { message: unknown }).message);
 	}
-	return 'Произошла неизвестная ошибка';
+	} else if (error instanceof Error) {
+		errorMessage = error.message;
+	}
+
+	return { error: errorMessage, validationErrors };
 }
 
 function createAuth() {
@@ -100,9 +98,12 @@ function createAuth() {
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
+				const { error: errorMessage, validationErrors } = processAuthError(error);
+
 				return {
 					success: false,
-					error: getErrorMessage(error)
+					error: errorMessage,
+					validationErrors
 				};
 			}
 		},
@@ -123,9 +124,12 @@ function createAuth() {
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
+				const { error: errorMessage, validationErrors } = processAuthError(error);
+
 				return {
 					success: false,
-					error: getErrorMessage(error)
+					error: errorMessage,
+					validationErrors
 				};
 			}
 		},

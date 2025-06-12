@@ -1,24 +1,12 @@
 // src/lib/api/client.ts (финальная версия с правильной типизацией)
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
+import type { ApiResponse, ApiError } from '$lib/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Типы для API
 type QueryParams = Record<string, string | number | boolean | null | undefined>;
-
-// Структура ответа вашего API
-interface APIResponse<T = any> {
-	success: boolean;
-	data?: T;
-	message?: string;
-}
-
-interface APIError {
-	message: string;
-	status: number;
-	code?: string;
-}
 
 // Переменные для управления очередью запросов
 let isRefreshing = false;
@@ -126,52 +114,41 @@ class APIClient {
 		return this.handleResponse<T>(response);
 	}
 
-	// Обработка ответа с учетом структуры API
+	// Обработка ответа с учетом вашего PHP класса JsonResponse
 	private async handleResponse<T>(response: Response): Promise<T> {
-		if (!response.ok) {
-			await this.handleErrorResponse(response);
-		}
-
 		const contentType = response.headers.get('content-type');
-		if (contentType && contentType.includes('application/json')) {
-			const jsonResponse = await response.json() as APIResponse<T>;
 
-			// Проверяем структуру ответа
-			if (jsonResponse.success === false) {
-				throw new Error(jsonResponse.message || 'API returned success: false');
+		if (!contentType || !contentType.includes('application/json')) {
+			// Если не JSON, то обрабатываем как текст
+		if (!response.ok) {
+				const text = await response.text();
+				throw new Error(text || `HTTP ${response.status}: ${response.statusText}`);
+		}
+			return response.text() as unknown as T;
 			}
 
-			// Если есть data, возвращаем её, иначе весь ответ
-			return (jsonResponse.data !== undefined ? jsonResponse.data : jsonResponse) as T;
-		}
+		const jsonResponse = await response.json() as ApiResponse<T>;
 
-		return response.text() as T;
+		// Обрабатываем успешные ответы
+		if (jsonResponse.success) {
+			// Возвращаем data если есть, иначе пустой объект
+			return (jsonResponse.data !== undefined ? jsonResponse.data : {} as T);
 	}
 
-	// Обработка ошибок
-	private async handleErrorResponse(response: Response): Promise<never> {
-		let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+		// Обрабатываем ошибки
+		const errorMessage = jsonResponse.message || `HTTP ${response.status}: ${response.statusText}`;
 
-		try {
-			const errorData = await response.json() as APIResponse;
-			errorMessage = errorData.message || errorMessage;
-		} catch {
-			try {
-				errorMessage = await response.text() || errorMessage;
-			} catch {
-				// Используем стандартное сообщение
-			}
-		}
+		const error: ApiError = {
+			message: errorMessage,
+			status: response.status,
+			errors: jsonResponse.errors,
+			validationErrors: jsonResponse.validation_errors
+		};
 
 		// Автоматический редирект на логин при 401
 		if (response.status === 401 && browser) {
 			goto('/login');
 		}
-
-		const error: APIError = {
-			message: errorMessage,
-			status: response.status
-		};
 
 		throw error;
 	}
