@@ -2,21 +2,15 @@ export interface ApiResponse<T = unknown> {
 	success: boolean;
 	data?: T;
 	message?: string;
-	errors?: string;
-	validation_errors?: ValidationErrors;
+	errors?: unknown;
 	meta?: Record<string, unknown>;
 }
 
 // Типы ошибок
-export interface ValidationErrors {
-	[field: string]: string | string[];
-}
-
 export interface ApiError {
 	message: string;
 	status: number;
-	errors?: string;
-	validationErrors?: ValidationErrors;
+	errors?: unknown;
 }
 
 // Специфичные типы для авторизации

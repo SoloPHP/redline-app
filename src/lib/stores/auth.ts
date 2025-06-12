@@ -12,8 +12,8 @@ interface AuthState {
 
 interface AuthResult {
 	success: boolean;
-	error?: string;
-	validationErrors?: Record<string, string>;
+	message?: string;
+	errors?: unknown;
 }
 
 interface APIAuthOptions {
@@ -27,34 +27,6 @@ const initialState: AuthState = {
 	isAuthenticated: false,
 	isLoading: false
 };
-
-function processAuthError(error: unknown): { error: string; validationErrors?: Record<string, string> } {
-	let errorMessage = 'Произошла неизвестная ошибка';
-	let validationErrors: Record<string, string> | undefined;
-
-	if (error && typeof error === 'object') {
-		const apiError = error as ApiError;
-
-		// Приоритет сообщений: message > errors > общее сообщение
-		errorMessage = apiError.message || apiError.errors || errorMessage;
-
-		// Обработка ошибок валидации
-		if (apiError.validationErrors) {
-			validationErrors = {};
-			for (const [key, value] of Object.entries(apiError.validationErrors)) {
-				if (Array.isArray(value)) {
-					validationErrors[key] = value.join(', ');
-				} else if (typeof value === 'string') {
-					validationErrors[key] = value;
-				}
-	}
-	}
-	} else if (error instanceof Error) {
-		errorMessage = error.message;
-	}
-
-	return { error: errorMessage, validationErrors };
-}
 
 function createAuth() {
 	const { subscribe, set, update } = writable<AuthState>(initialState);
@@ -98,12 +70,13 @@ function createAuth() {
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
-				const { error: errorMessage, validationErrors } = processAuthError(error);
+
+				const apiError = error as ApiError;
 
 				return {
 					success: false,
-					error: errorMessage,
-					validationErrors
+					message: apiError.message || 'Ошибка входа',
+					errors: apiError.errors // Прямо как приходит с бекенда
 				};
 			}
 		},
@@ -124,12 +97,13 @@ function createAuth() {
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
-				const { error: errorMessage, validationErrors } = processAuthError(error);
+
+				const apiError = error as ApiError;
 
 				return {
 					success: false,
-					error: errorMessage,
-					validationErrors
+					message: apiError.message || 'Ошибка регистрации',
+					errors: apiError.errors // Прямо как приходит с бекенда
 				};
 			}
 		},

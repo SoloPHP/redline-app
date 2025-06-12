@@ -141,8 +141,7 @@ class APIClient {
 		const error: ApiError = {
 			message: errorMessage,
 			status: response.status,
-			errors: jsonResponse.errors,
-			validationErrors: jsonResponse.validation_errors
+			errors: jsonResponse.errors
 		};
 
 		// Автоматический редирект на логин при 401
