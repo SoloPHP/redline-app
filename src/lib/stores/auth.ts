@@ -1,4 +1,3 @@
-// src/lib/stores/auth.ts - Обновлено под структуру API
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { api } from '$lib/api/client';
@@ -34,84 +33,55 @@ function createAuth() {
 	return {
 		subscribe,
 
-		// Проверка авторизации при загрузке приложения
 		checkAuth: async (): Promise<void> => {
 			if (!browser) return;
-
 			update((state) => ({ ...state, isLoading: true }));
-
 			try {
-				// API клиент уже извлекает data, поэтому получаем сразу User
-				const user = await api.get<User>('/auth/me');
-				set({
-					user,
-					isAuthenticated: true,
-					isLoading: false
-				});
+				const user = await api.auth<User>('/auth/me');
+				set({ user, isAuthenticated: true, isLoading: false });
 			} catch (error) {
 				console.error('Auth check failed:', error);
-				set(initialState);
+				set({ ...initialState, isLoading: false });
 			}
 		},
 
-		// Вход в систему
 		login: async (credentials: LoginCredentials): Promise<AuthResult> => {
 			update((state) => ({ ...state, isLoading: true }));
-
 			try {
-				// API клиент уже извлекает data, поэтому получаем сразу User
-				const user = await api.post<User, LoginCredentials>('/auth/login', credentials);
-
-				set({
-					user,
-					isAuthenticated: true,
-					isLoading: false
-				});
+        const response = await api.post<{ user: User }, LoginCredentials>('/auth/login', credentials);
+				set({ user: response.user, isAuthenticated: true, isLoading: false });
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
-
 				const apiError = error as ApiError;
-
 				return {
 					success: false,
 					message: apiError.message || 'Ошибка входа',
-					errors: apiError.errors // Прямо как приходит с бекенда
+					errors: apiError.errors
 				};
 			}
 		},
 
-		// Регистрация
 		register: async (userData: RegisterData): Promise<AuthResult> => {
 			update((state) => ({ ...state, isLoading: true }));
-
 			try {
-				// API клиент уже извлекает data, поэтому получаем сразу User
-				const user = await api.post<User, RegisterData>('/auth/register', userData);
-
-				set({
-					user,
-					isAuthenticated: true,
-					isLoading: false
-				});
+        const response = await api.post<{ user: User }, RegisterData>('/auth/register', userData);
+        set({ user: response.user, isAuthenticated: true, isLoading: false });
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
-
 				const apiError = error as ApiError;
-
 				return {
 					success: false,
 					message: apiError.message || 'Ошибка регистрации',
-					errors: apiError.errors // Прямо как приходит с бекенда
+					errors: apiError.errors
 				};
 			}
 		},
 
-		// Выход из системы
 		logout: async (): Promise<void> => {
 			try {
-				await api.post('/auth/logout');
+        await api.post('/auth/logout');
 			} catch (error) {
 				console.error('Logout error:', error);
 			} finally {
@@ -119,12 +89,10 @@ function createAuth() {
 			}
 		},
 
-		// Метод для выполнения защищенных запросов с auto-refresh
 		apiCall: async <T>(endpoint: string, options: APIAuthOptions = {}): Promise<T> => {
 			return api.auth<T>(endpoint, options);
 		},
 
-		// Установка пользователя
 		setUser: (user: User): void => {
 			set({ user, isAuthenticated: true, isLoading: false });
 		},

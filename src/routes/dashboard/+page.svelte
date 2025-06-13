@@ -1,4 +1,3 @@
-// src/routes/dashboard/+page.svelte - Полная версия
 <script lang="ts">
     import { auth } from '$lib/stores/auth';
 
