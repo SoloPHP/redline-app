@@ -97,7 +97,6 @@ function createAuth() {
 			set({ user, isAuthenticated: true, isLoading: false });
 		},
 
-		// Установка загрузки
 		setLoading: (isLoading: boolean): void => {
 			update((state) => ({ ...state, isLoading }));
 		}

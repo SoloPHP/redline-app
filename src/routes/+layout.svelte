@@ -9,29 +9,21 @@
 
     let { children } = $props();
 
-    // Список защищенных маршрутов
     const protectedRoutes = ['/dashboard', '/posts', '/upload', '/profile', '/settings'];
-
-    // Список маршрутов только для неавторизованных пользователей
     const guestOnlyRoutes = ['/login', '/register', '/forgot-password'];
 
-    // Показывать ли навигацию
     let showNavigation = $derived.by(() => {
         const currentPath = page.url.pathname;
         return !guestOnlyRoutes.some(route => currentPath.startsWith(route));
     });
 
-    // Проверяем авторизацию при загрузке
     onMount(async () => {
-        auth.checkAuth();
+        await auth.checkAuth();
         theme.init();
-
-        // Инициализируем Flowbite
         const flowbite = await import('flowbite');
         flowbite.initFlowbite();
     });
 
-    // Защита маршрутов
     $effect(() => {
         const currentPath = page.url.pathname;
 
@@ -39,9 +31,8 @@
         const isProtectedRoute = protectedRoutes.some(route =>
             currentPath.startsWith(route)
         );
-
             if (isProtectedRoute || currentPath === '/') {
-                goto('/login');
+                goto('/login', { replaceState: true });
             }
         }
 
@@ -49,33 +40,28 @@
         const isGuestOnlyRoute = guestOnlyRoutes.some(route =>
             currentPath.startsWith(route)
         );
-
             if (isGuestOnlyRoute || currentPath === '/') {
-                goto('/dashboard');
+                goto('/dashboard', { replaceState: true });
             }
         }
     });
 
-    // Реинициализация Flowbite при смене страницы
     $effect(() => {
         void page.url.pathname;
-
         setTimeout(async () => {
             const flowbite = await import('flowbite');
             flowbite.initFlowbite();
         }, 100);
     });
 
-    // Выход из системы
     async function logout() {
         await auth.logout();
-        goto('/login');
+        goto('/login', { replaceState: true });
     }
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
     {#if showNavigation}
-        <!-- Навигация -->
         <nav class="bg-white dark:bg-gray-800 shadow border-b border-gray-200 dark:border-gray-700 transition-colors">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between h-16">
@@ -84,10 +70,8 @@
                             RedLine App
                         </a>
                     </div>
-
                     <div class="flex items-center space-x-4">
                         <DarkMode />
-
                         {#if $auth.isAuthenticated}
                             <span class="text-gray-700 dark:text-gray-300 transition-colors">
                                 Привет, {$auth.user?.name}!
@@ -117,13 +101,11 @@
             </div>
         </nav>
     {:else}
-        <!-- Переключатель темы для страниц авторизации -->
         <div class="absolute top-4 right-4 z-10">
             <DarkMode />
         </div>
     {/if}
 
-    <!-- Основное содержимое -->
     <main>
         {#if $auth.isLoading && protectedRoutes.some(route => page.url.pathname.startsWith(route))}
             <div class="min-h-screen flex items-center justify-center">
