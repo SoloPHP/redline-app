@@ -1,27 +1,24 @@
-export interface ApiResponse<T = unknown> {
+export interface ApiResponse<T> {
 	success: boolean;
 	data?: T;
 	message?: string;
 	errors?: unknown;
-	meta?: Record<string, unknown>;
 }
 
-// Типы ошибок
 export interface ApiError {
 	message: string;
 	status: number;
-	errors?: unknown;
+	errors?: Record<string, string>;
 }
 
-// Специфичные типы для авторизации
 export interface User {
 	id: number;
-	name: string;
-	phone: string;
-	login: string;
-	pin_code?: string;
-	created_at: string;
-	notify: number;
+	name?: string | null;
+	login?: string | null;
+	phone?: string | null;
+	created_at?: string | null;
+	notify?: boolean | null;
+	pin_code?: string | null;
 }
 
 export interface LoginCredentials {
