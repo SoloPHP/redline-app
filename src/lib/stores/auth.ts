@@ -15,12 +15,6 @@ interface AuthResult {
 	errors?: unknown;
 }
 
-interface APIAuthOptions {
-	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-	body?: unknown;
-	params?: Record<string, string | number | boolean | null | undefined>;
-}
-
 const initialState: AuthState = {
 	user: null,
 	isAuthenticated: false,
@@ -37,7 +31,7 @@ function createAuth() {
 			if (!browser) return;
 			update((state) => ({ ...state, isLoading: true }));
 			try {
-				const user = await api.auth<User>('/auth/me');
+				const user = await api.get<User>('/auth/me');
 				set({ user, isAuthenticated: true, isLoading: false });
 			} catch (error) {
 				console.error('Auth check failed:', error);
@@ -48,7 +42,7 @@ function createAuth() {
 		login: async (credentials: LoginCredentials): Promise<AuthResult> => {
 			update((state) => ({ ...state, isLoading: true }));
 			try {
-        const response = await api.post<{ user: User }, LoginCredentials>('/auth/login', credentials);
+				const response = await api.post<{ user: User }, LoginCredentials>('/auth/login', credentials);
 				set({ user: response.user, isAuthenticated: true, isLoading: false });
 				return { success: true };
 			} catch (error) {
@@ -65,8 +59,8 @@ function createAuth() {
 		register: async (userData: RegisterData): Promise<AuthResult> => {
 			update((state) => ({ ...state, isLoading: true }));
 			try {
-        const response = await api.post<{ user: User }, RegisterData>('/auth/register', userData);
-        set({ user: response.user, isAuthenticated: true, isLoading: false });
+				const response = await api.post<{ user: User }, RegisterData>('/auth/register', userData);
+				set({ user: response.user, isAuthenticated: true, isLoading: false });
 				return { success: true };
 			} catch (error) {
 				set({ ...initialState });
@@ -81,16 +75,12 @@ function createAuth() {
 
 		logout: async (): Promise<void> => {
 			try {
-        await api.post('/auth/logout');
+				await api.post('/auth/logout');
 			} catch (error) {
 				console.error('Logout error:', error);
 			} finally {
 				set(initialState);
 			}
-		},
-
-		apiCall: async <T>(endpoint: string, options: APIAuthOptions = {}): Promise<T> => {
-			return api.auth<T>(endpoint, options);
 		},
 
 		setUser: (user: User): void => {

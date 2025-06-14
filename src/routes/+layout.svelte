@@ -27,19 +27,22 @@
     $effect(() => {
         const currentPath = page.url.pathname;
 
-        if (!$auth.isAuthenticated && !$auth.isLoading) {
-        const isProtectedRoute = protectedRoutes.some(route =>
-            currentPath.startsWith(route)
-        );
+        // Пропускаем перенаправление, если проверка авторизации ещё не завершена
+        if ($auth.isLoading) {
+            return;
+        }
+
+        if (!$auth.isAuthenticated) {
+            const isProtectedRoute = protectedRoutes.some(route =>
+                currentPath.startsWith(route)
+            );
             if (isProtectedRoute || currentPath === '/') {
                 goto('/login', { replaceState: true });
             }
-        }
-
-        if ($auth.isAuthenticated && !$auth.isLoading) {
-        const isGuestOnlyRoute = guestOnlyRoutes.some(route =>
-            currentPath.startsWith(route)
-        );
+        } else {
+            const isGuestOnlyRoute = guestOnlyRoutes.some(route =>
+                currentPath.startsWith(route)
+            );
             if (isGuestOnlyRoute || currentPath === '/') {
                 goto('/dashboard', { replaceState: true });
             }
