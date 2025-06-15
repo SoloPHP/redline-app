@@ -8,7 +8,20 @@ export interface ApiResponse<T> {
 export interface ApiError {
 	message: string;
 	status: number;
-	errors?: Record<string, string>;
+	errors?: unknown; // Изменено с Record<string, string> на unknown
+}
+
+// Интерфейс для ответа от /auth/login
+export interface AuthResponse {
+	user: User;
+	access_token: string;
+	refresh_token: string;
+}
+
+// Интерфейс для ответа от /auth/refresh
+export interface RefreshResponse {
+	access_token: string;
+	refresh_token: string;
 }
 
 export interface User {
