@@ -7,6 +7,32 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+    /* Светлая версия красного цвета из логотипа #dd2a26 */
+    --color-primary-50: #fef2f2;
+    --color-primary-100: #fee2e2;
+    --color-primary-200: #fecaca;
+    --color-primary-300: #fca5a5;
+    --color-primary-400: #f87171;
+    --color-primary-500: #f04c47;
+    --color-primary-600: #dd2a26;
+    --color-primary-700: #c12622;
+    --color-primary-800: #a5221e;
+    --color-primary-900: #891d1a;
+
+    /* Дополнительные цвета - темно-серые/черные */
+    --color-secondary-50: #f9fafb;
+    --color-secondary-100: #f3f4f6;
+    --color-secondary-200: #e5e7eb;
+    --color-secondary-300: #d1d5db;
+    --color-secondary-400: #9ca3af;
+    --color-secondary-500: #6b7280;
+    --color-secondary-600: #4b5563;
+    --color-secondary-700: #374151;
+    --color-secondary-800: #1f2937;
+    --color-secondary-900: #111827;
+}
+
+/*@theme {
     --color-primary-50: #fff5f2;
     --color-primary-100: #fff1ee;
     --color-primary-200: #ffe4de;
@@ -28,8 +54,7 @@
     --color-secondary-700: #0369a1;
     --color-secondary-800: #075985;
     --color-secondary-900: #0c4a6e;
-}
-
+}*/
 @source "../node_modules/flowbite-svelte/dist";
 @source "../node_modules/flowbite-svelte-icons/dist";
 

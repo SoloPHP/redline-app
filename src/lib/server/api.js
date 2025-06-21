@@ -1,6 +1,6 @@
 import { PHP_API_URL } from '$env/static/private';
 import { fail } from '@sveltejs/kit';
-import { extractErrorMessage } from '$lib/utils/api-errors.js';
+import { extractErrorMessage} from '$lib/utils/api-errors.js';
 
 // ========================================
 // БАЗОВЫЕ API ФУНКЦИИ
@@ -82,9 +82,12 @@ export async function apiRequest(
 				};
 			}
 
+			// Извлекаем сообщение об ошибке из JsonResponse
+			const errorMessage = extractErrorMessage(data);
+
 			return {
 				success: false,
-				error: extractErrorMessage(data),
+				error: errorMessage,
 				rateLimited: false,
 				status: response.status
 			};
@@ -93,6 +96,7 @@ export async function apiRequest(
 		return {
 			success: true,
 			data: data.data,
+			meta: data.meta,
 			status: response.status
 		};
 	} catch (error) {
